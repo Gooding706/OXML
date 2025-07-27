@@ -1,0 +1,4 @@
+.vscode
+builds/*
+.DS_Store
+*.xml
