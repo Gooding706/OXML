@@ -19,11 +19,4 @@ int main(int argc, char **argv)
     //     oxml::token t = lex.getNextToken();
     //     std::cout << t << " : " << t.getTokenContext().lineNumber << '\n';
     // }
-
-    oxml::documentStream strm{path};
-    std::cout << strm.tellLine() << strm.peekn(4) << '\n';
-    strm.ignore(std::numeric_limits<std::streamsize>::max(), "</");
-    std::cout << strm.tellLine()  << strm.peekn(4) << '\n';
-    strm.seekLine(3);
-    std::cout << strm.tellLine()  << strm.peekn(10) << '\n';
 }
