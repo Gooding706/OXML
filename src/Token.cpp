@@ -1,29 +1,9 @@
 #include <Token.hpp>
 namespace oxml
 {
-    token::token(enum tokenType type)
-    {
-        this->type = type;
-    }
+    token::token(enum tokenType type, std::size_t start, std::size_t end) : type(type), tokenStart(start), tokenEnd(end) {}
 
-    token::token(enum tokenType type, const std::string &characterContent)
-    {
-        this->type = type;
-        this->characterContent = characterContent;
-    }
-
-    token::token(enum tokenType type, documentContext ctx)
-    {
-        this->type = type;
-        this->tokenContext = ctx;
-    }
-
-    token::token(enum tokenType type, const std::string &characterContent, documentContext ctx)
-    {
-        this->type = type;
-        this->characterContent = characterContent;
-        this->tokenContext = ctx;
-    }
+    token::token(enum tokenType type, const std::string &characterContent, std::size_t start, std::size_t end) : type(type), characterContent(characterContent), tokenStart(start), tokenEnd(end) {}
 
     enum tokenType token::getType() const
     {
@@ -35,9 +15,14 @@ namespace oxml
         return characterContent;
     }
 
-    documentContext token::getTokenContext() const
+    std::size_t token::getTokenStart() const
     {
-        return tokenContext;
+        return tokenStart;
+    }
+    
+    std::size_t token::getTokenEnd() const
+    {
+        return tokenEnd;
     }
 
     std::ostream &operator<<(std::ostream &strm, token t)
@@ -73,6 +58,12 @@ namespace oxml
             break;
         case (TERMINAL):
             strm << "TERMINAL";
+            break;
+        case (SQUAREBRACKET_OPEN):
+            strm << "SQUAREBRACKET_OPEN";
+            break;
+        case (SQUAREBRACKET_CLOSE):
+            strm << "SQUAREBRACKET_CLOSE";
             break;
         }
         return strm;

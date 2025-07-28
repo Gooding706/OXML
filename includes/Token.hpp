@@ -1,5 +1,6 @@
 #pragma once
 #include <sstream>
+#include <tuple>
 
 namespace oxml
 {
@@ -19,38 +20,26 @@ namespace oxml
         SQUAREBRACKET_CLOSE
     };
 
-    /*
- we hold a document context on each token and during the lexing process in order to
- print reasonable errors during lexing and parsing
- */
-    struct documentContext
+    class token
     {
-        /*
-        refers to the position of the line containing the token within the text stream
-        textStream.seekg(lineStart);
-        textStream.getLine(); => line containing token
-        */
-        std::streampos lineStart;
-        int lineNumber;
-    };
-
-    struct token
-    {
-        token(enum tokenType type);
-        token(enum tokenType type, const std::string &characterContent);
-
-        token(enum tokenType type, documentContext ctx);
-        token(enum tokenType type, const std::string &characterContent, documentContext ctx);
+    public:
+        token(enum tokenType type, std::size_t start, std::size_t end);
+        token(enum tokenType type, const std::string &characterContent, std::size_t start, std::size_t end);
 
         tokenType getType() const;
         const std::string &getCharcterContent();
-        documentContext getTokenContext() const;
+
+        std::size_t getTokenStart() const;
+        std::size_t getTokenEnd() const;
 
         friend std::ostream &operator<<(std::ostream &strm, token t);
 
     private:
         tokenType type;
         std::string characterContent;
-        documentContext tokenContext;
+
+        // line number of token start/end, to be used in error reporting
+        std::size_t tokenStart;
+        std::size_t tokenEnd;
     };
 }

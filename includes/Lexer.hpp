@@ -1,8 +1,8 @@
 #pragma once
-#include <fstream>
-#include <sstream>
+#include <DocumentStream.hpp>
 #include <string>
 #include <Token.hpp>
+#include <deque>
 
 namespace oxml
 {
@@ -15,18 +15,17 @@ namespace oxml
         // create lexer from open file
         lexer(const std::ifstream &fileStream);
 
+        const documentStream& rdbuf();
+
         token getNextToken();
 
         bool eof();
 
     private:
-        std::stringstream textStream;
-        documentContext documentlexerState;
-
-        // Using the previous token we can determine how we should Lex the next token
-        tokenType previousToken{GREATERTHAN};
-        
-    private:
-        token nextTextType();
+        documentStream textStream;
+        /*often it is sensical for the tokenizer to get multiple tokens at once
+        in this case we will store the excess within this buffer for later
+        use when the caller asks for them via : getNextToken()*/
+        std::deque<token> tokenBuffer;
     };
 }
