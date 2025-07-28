@@ -7,6 +7,15 @@
 
 namespace oxml
 {
+    void documentStream::incrementLineNumber()
+    {
+        lineNumber++;
+        if (lineMapping.size() < lineNumber)
+        {
+            lineMapping.push_back(buf.tellg());
+        }
+    }
+
     documentStream::documentStream(const char *path) : buf()
     {
         std::ifstream file{path};
@@ -56,11 +65,7 @@ namespace oxml
         {
             if (ISNEWLINE(ch))
             {
-                lineNumber++;
-                if (lineMapping.size() < lineNumber)
-                {
-                    lineMapping.push_back(buf.tellg());
-                }
+                incrementLineNumber();
             }
         }
     }
@@ -72,16 +77,11 @@ namespace oxml
         {
             if (ISNEWLINE(ch))
             {
-                lineNumber++;
-                if (lineMapping.size() < lineNumber)
-                {
-                    lineMapping.push_back(buf.tellg());
-                }
+                incrementLineNumber();
             }
         }
     }
 
-    // TODO: rewrite this function
     void documentStream::ignore(std::streamsize n, const char *delimeter)
     {
         int idx = 0;
@@ -92,11 +92,11 @@ namespace oxml
 
             if (ISNEWLINE(ch))
             {
-                lineNumber++;
-                lineMapping.push_back(buf.tellg());
+                incrementLineNumber();
             }
 
-            if(delimeter[idx] != ch){
+            if (delimeter[idx] != ch)
+            {
                 idx = -1;
             }
 
@@ -123,8 +123,7 @@ namespace oxml
         {
             if (ISNEWLINE(buf.get()))
             {
-                lineNumber++;
-                lineMapping.push_back(buf.tellg());
+                incrementLineNumber();
             }
 
             if (lineNumber == line)
@@ -149,11 +148,7 @@ namespace oxml
         {
             if (ISNEWLINE(ch))
             {
-                lineNumber++;
-                if (lineMapping.size() < lineNumber)
-                {
-                    lineMapping.push_back(buf.tellg());
-                }
+                incrementLineNumber();
             }
 
             out.insert(out.end(), ch);
@@ -161,6 +156,46 @@ namespace oxml
 
         return out;
     }
-    std::string documentStream::getUntil(bool (*delimeter)(char)) { return "UNIMPLEMENTED"; }
-    std::string documentStream::getUntil(const char *delimeter) { return "UNIMPLEMENTED"; }
+
+    std::string documentStream::getUntil(bool (*delimeter)(char))
+    {
+        std::string out = "";
+        char ch = buf.get();
+        while (!buf.eof() && !delimeter(ch))
+        {
+            out.insert(out.end(), ch);
+
+            if (ISNEWLINE(ch))
+            {
+                incrementLineNumber();
+            }
+        }
+        return out;
+    }
+
+    std::string documentStream::getUntil(const char *delimeter)
+    {
+        std::string out = "";
+        int idx = 0;
+        std::size_t len = strlen(delimeter);
+        for (int i = 0; !buf.eof() && idx < len; i++)
+        {
+            char ch = buf.get();
+            out.insert(out.end(), ch);
+
+            if (ISNEWLINE(ch))
+            {
+                incrementLineNumber();
+            }
+
+            if (delimeter[idx] != ch)
+            {
+                idx = -1;
+            }
+
+            idx++;
+        }
+
+        return out;
+    }
 }

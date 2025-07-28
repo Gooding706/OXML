@@ -38,5 +38,8 @@ namespace oxml{
 
             //vector that maps such that lineMapping[line-1] = std::streampos of the start of line
             std::vector<std::streampos> lineMapping{0};
+
+        private:
+            void incrementLineNumber();
     };
 }
