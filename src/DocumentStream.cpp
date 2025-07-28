@@ -51,7 +51,12 @@ namespace oxml
         std::streampos resetPos = buf.tellg();
         for (int i = 0; i < n && !buf.eof(); i++)
         {
-            out.insert(out.end(), (char)buf.get());
+            char ch = buf.get();
+            out.insert(out.end(), ch);
+            if (ISNEWLINE(ch))
+            {
+                incrementLineNumber();
+            }
         }
 
         buf.seekg(resetPos);
@@ -63,6 +68,7 @@ namespace oxml
         char ch = buf.get();
         for (int i = 0; i < n && ch != delimeter && !buf.eof(); i++)
         {
+            ch = buf.get();
             if (ISNEWLINE(ch))
             {
                 incrementLineNumber();
@@ -75,6 +81,7 @@ namespace oxml
         char ch = buf.get();
         for (int i = 0; i < n && !delimeter(ch) && !buf.eof(); i++)
         {
+            ch = buf.get();
             if (ISNEWLINE(ch))
             {
                 incrementLineNumber();
@@ -89,7 +96,6 @@ namespace oxml
         for (int i = 0; i < n && !buf.eof() && idx < len; i++)
         {
             char ch = buf.get();
-
             if (ISNEWLINE(ch))
             {
                 incrementLineNumber();
@@ -119,9 +125,12 @@ namespace oxml
         }
 
         buf.seekg(lineMapping.back());
+        lineNumber = lineMapping.size();
+        
         while (!buf.eof())
         {
-            if (ISNEWLINE(buf.get()))
+            char ch = buf.get();
+            if (ISNEWLINE(ch))
             {
                 incrementLineNumber();
             }
@@ -146,12 +155,12 @@ namespace oxml
         std::string out = "";
         for (int i = 0; ch != delimeter && !buf.eof(); i++)
         {
+            out.insert(out.end(), ch);
+            ch = buf.get();
             if (ISNEWLINE(ch))
             {
                 incrementLineNumber();
             }
-
-            out.insert(out.end(), ch);
         }
 
         return out;
@@ -164,6 +173,7 @@ namespace oxml
         while (!buf.eof() && !delimeter(ch))
         {
             out.insert(out.end(), ch);
+            ch = buf.get();
 
             if (ISNEWLINE(ch))
             {
