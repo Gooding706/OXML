@@ -12,7 +12,9 @@ namespace oxml
         lineNumber++;
         if (lineMapping.size() < lineNumber)
         {
+            buf.get();
             lineMapping.push_back(buf.tellg());
+            buf.unget();
         }
     }
 
@@ -37,7 +39,7 @@ namespace oxml
 
     bool documentStream::eof()
     {
-        return buf.eof();
+        return (buf.peek() == EOF) || buf.eof();
     }
 
     char documentStream::peek()
@@ -49,7 +51,7 @@ namespace oxml
     {
         std::string out = "";
         std::streampos resetPos = buf.tellg();
-        for (int i = 0; i < n && !buf.eof(); i++)
+        for (int i = 0; i < n && !eof(); i++)
         {
             char ch = buf.get();
             out.insert(out.end(), ch);
@@ -66,7 +68,7 @@ namespace oxml
     void documentStream::ignore(std::streamsize n, int delimeter)
     {
         char ch = buf.peek();
-        for (int i = 0; i < n && ch != delimeter && !buf.eof(); i++)
+        for (int i = 0; i < n && ch != delimeter && !eof(); i++)
         {
             if (ISNEWLINE(ch))
             {
@@ -80,7 +82,7 @@ namespace oxml
     void documentStream::ignore(std::streamsize n, bool (*delimeter)(char))
     {
         char ch = buf.peek();
-        for (int i = 0; i < n && !delimeter(ch) && !buf.eof(); i++)
+        for (int i = 0; i < n && !delimeter(ch) && !eof(); i++)
         {
             if (ISNEWLINE(ch))
             {
@@ -91,11 +93,15 @@ namespace oxml
         }
     }
 
+    void documentStream::ignore(){
+        buf.ignore();
+    }
+
     void documentStream::ignore(std::streamsize n, const char *delimeter)
     {
         int idx = 0;
         std::size_t len = strlen(delimeter);
-        for (int i = 0; i < n && !buf.eof() && idx < len; i++)
+        for (int i = 0; i < n && !eof() && idx < len; i++)
         {
             char ch = buf.get();
             if (ISNEWLINE(ch))
@@ -135,7 +141,7 @@ namespace oxml
         buf.seekg(lineMapping.back());
         lineNumber = lineMapping.size();
 
-        while (!buf.eof())
+        while (!eof())
         {
             char ch = buf.get();
             if (ISNEWLINE(ch))
@@ -161,7 +167,8 @@ namespace oxml
     {
         char ch = buf.peek();
         std::string out = "";
-        for (int i = 0; ch != delimeter && !buf.eof(); i++)
+        
+        for (int i = 0; ch != delimeter && !eof(); i++)
         {
             out.insert(out.end(), ch);
             
@@ -169,6 +176,7 @@ namespace oxml
             {
                 incrementLineNumber();
             }
+
             buf.ignore();
             ch = buf.peek();
         }
@@ -180,7 +188,7 @@ namespace oxml
     {
         std::string out = "";
         char ch = buf.peek();
-        while (!buf.eof() && !delimeter(ch))
+        while (!eof() && !delimeter(ch))
         {
             out.insert(out.end(), ch);
     
@@ -188,8 +196,8 @@ namespace oxml
             {
                 incrementLineNumber();
             }
-            buf.ignore();
 
+            buf.ignore();
             ch = buf.peek();
         }
         return out;
@@ -200,7 +208,7 @@ namespace oxml
         std::string out = "";
         int idx = 0;
         std::size_t len = strlen(delimeter);
-        for (int i = 0; !buf.eof() && idx < len; i++)
+        for (int i = 0; !eof() && idx < len; i++)
         {
             char ch = buf.get();
             out.insert(out.end(), ch);

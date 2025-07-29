@@ -38,7 +38,7 @@ namespace oxml
         std::string content = "";
 
         // are these kinds of loops bad practice?
-        for (;;)
+        while (!textStream.eof())
         {
             
             textStream.ignoreWS();
@@ -105,7 +105,7 @@ namespace oxml
     {
         // start with <
 
-        textStream.ignore(1, '\0');
+        textStream.ignore();
         tokenBuffer.push_back(token(LESSTHAN, textStream.tellLine(), textStream.tellLine()));
 
         std::size_t tokenStart = textStream.tellLine();
@@ -129,7 +129,7 @@ namespace oxml
                                         token(ERR, textStream.tellLine(), textStream.tellLine()));
         }
 
-        textStream.ignore(1, '\0');
+        textStream.ignore();
         tokenBuffer.push_back(token(GREATERTHAN, textStream.tellLine(), textStream.tellLine()));
     }
 
@@ -156,17 +156,17 @@ namespace oxml
     token lexer::getNextToken()
     {
         // we can source from our buffer until we run out
+       ignoreUnread();
         if (tokenBuffer.size() > 0)
         {
             token out = tokenBuffer.front();
             tokenBuffer.pop_front();
             return out;
         }
-        else if (textStream.eof())
+        if (eof())
             return token(TERMINAL, textStream.tellLine(), textStream.tellLine());
 
-        ignoreUnread();
-
+        
         if (textStream.peek() == '<')
         {
             try
@@ -181,11 +181,13 @@ namespace oxml
                 throw e;
             }
             // we call the function itself because, given success, the token buffer should have elements in it
+            
             return getNextToken();
         }
 
         try
         {
+            std::cout << eof() << textStream.peek();
             token body = tokenizeBody();
             return body;
         }
@@ -195,7 +197,7 @@ namespace oxml
         }
     }
 
-    bool lexer::eof() { return textStream.eof() && tokenBuffer.empty(); }
+    bool lexer::eof() {return textStream.eof() && tokenBuffer.empty(); }
 
     // FIXME: this modifies the global state of the text stream object, is that ok?
     std::runtime_error lexer::generateException(const char *errBody, token t)
