@@ -17,7 +17,8 @@ namespace oxml
         QUESTION,
         TERMINAL,
         SQUAREBRACKET_OPEN,
-        SQUAREBRACKET_CLOSE
+        SQUAREBRACKET_CLOSE,
+        ERR
     };
 
     class token
@@ -33,6 +34,7 @@ namespace oxml
         std::size_t getTokenEnd() const;
 
         friend std::ostream &operator<<(std::ostream &strm, token t);
+
 
     private:
         tokenType type;

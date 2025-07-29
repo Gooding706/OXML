@@ -65,27 +65,29 @@ namespace oxml
 
     void documentStream::ignore(std::streamsize n, int delimeter)
     {
-        char ch = buf.get();
+        char ch = buf.peek();
         for (int i = 0; i < n && ch != delimeter && !buf.eof(); i++)
         {
-            ch = buf.get();
             if (ISNEWLINE(ch))
             {
                 incrementLineNumber();
             }
+            buf.ignore();
+            ch = buf.peek();
         }
     }
 
     void documentStream::ignore(std::streamsize n, bool (*delimeter)(char))
     {
-        char ch = buf.get();
+        char ch = buf.peek();
         for (int i = 0; i < n && !delimeter(ch) && !buf.eof(); i++)
         {
-            ch = buf.get();
             if (ISNEWLINE(ch))
             {
                 incrementLineNumber();
             }
+            buf.ignore();
+            ch = buf.peek();
         }
     }
 
@@ -109,6 +111,12 @@ namespace oxml
             idx++;
         }
     }
+    
+    void documentStream::ignoreWS()
+    {
+        this->ignore(std::numeric_limits<std::streamsize>::max(), [](char ch)
+                          { return !(isspace(ch)); });
+    }
 
     std::size_t documentStream::tellLine()
     {
@@ -126,7 +134,7 @@ namespace oxml
 
         buf.seekg(lineMapping.back());
         lineNumber = lineMapping.size();
-        
+
         while (!buf.eof())
         {
             char ch = buf.get();
@@ -151,16 +159,18 @@ namespace oxml
 
     std::string documentStream::getUntil(char delimeter)
     {
-        char ch = buf.get();
+        char ch = buf.peek();
         std::string out = "";
         for (int i = 0; ch != delimeter && !buf.eof(); i++)
         {
             out.insert(out.end(), ch);
-            ch = buf.get();
+            
             if (ISNEWLINE(ch))
             {
                 incrementLineNumber();
             }
+            buf.ignore();
+            ch = buf.peek();
         }
 
         return out;
@@ -169,16 +179,18 @@ namespace oxml
     std::string documentStream::getUntil(bool (*delimeter)(char))
     {
         std::string out = "";
-        char ch = buf.get();
+        char ch = buf.peek();
         while (!buf.eof() && !delimeter(ch))
         {
             out.insert(out.end(), ch);
-            ch = buf.get();
-
+    
             if (ISNEWLINE(ch))
             {
                 incrementLineNumber();
             }
+            buf.ignore();
+
+            ch = buf.peek();
         }
         return out;
     }

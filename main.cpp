@@ -13,10 +13,17 @@ int main(int argc, char **argv)
 
     std::cout << "hello world!, with path: " << path << '\n';
 
-    // oxml::lexer lex(path);
-    // while(!lex.eof())
-    // {
-    //     oxml::token t = lex.getNextToken();
-    //     std::cout << t << " : " << t.getTokenContext().lineNumber << '\n';
-    // }
+    oxml::lexer lex(path);
+    while (!lex.eof())
+    {
+        try
+        {
+            oxml::token t = lex.getNextToken();
+            std::cout << t << '\n';
+        }
+        catch (std::runtime_error e)
+        {
+            std::cerr << e.what();
+        }
+    }
 }

@@ -65,6 +65,9 @@ namespace oxml
         case (SQUAREBRACKET_CLOSE):
             strm << "SQUAREBRACKET_CLOSE";
             break;
+        case (ERR):
+            strm << "ERR";
+            break;
         }
         return strm;
     }

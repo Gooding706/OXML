@@ -21,6 +21,7 @@ namespace oxml{
             void ignore(std::streamsize n, int delimeter);
             void ignore(std::streamsize n, bool(*delimeter)(char));
             void ignore(std::streamsize n, const char* delimeter);
+            void ignoreWS();
 
             std::size_t tellLine();
             //tries to jump to line, if the line is out of bounds or otherwise can't be found returns false

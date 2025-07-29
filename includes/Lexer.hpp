@@ -26,6 +26,16 @@ namespace oxml
         /*often it is sensical for the tokenizer to get multiple tokens at once
         in this case we will store the excess within this buffer for later
         use when the caller asks for them via : getNextToken()*/
-        std::deque<token> tokenBuffer;
+        std::deque<token> tokenBuffer{};
+    private:
+        void tokenizeInnerTag();
+        token tokenizeBody();
+        void tokenizeInnerTagAttribute();
+        void tokenizeClosingTag();
+
+        void ignoreUnread();
+        
+        //return a runtime error with errBody followed by information about where the error appears in textStream 
+        std::runtime_error generateException(const char* errBody, token t);
     };
 }
