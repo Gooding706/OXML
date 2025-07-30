@@ -12,9 +12,7 @@ namespace oxml
         lineNumber++;
         if (lineMapping.size() < lineNumber)
         {
-            buf.get();
             lineMapping.push_back(buf.tellg());
-            buf.unget();
         }
     }
 
@@ -39,7 +37,7 @@ namespace oxml
 
     bool documentStream::eof()
     {
-        return (buf.peek() == EOF) || buf.eof();
+        return (peek() == EOF) || buf.eof() || !buf;
     }
 
     char documentStream::peek()
@@ -53,12 +51,8 @@ namespace oxml
         std::streampos resetPos = buf.tellg();
         for (int i = 0; i < n && !eof(); i++)
         {
-            char ch = buf.get();
+            char ch = get();
             out.insert(out.end(), ch);
-            if (ISNEWLINE(ch))
-            {
-                incrementLineNumber();
-            }
         }
 
         buf.seekg(resetPos);
@@ -67,34 +61,31 @@ namespace oxml
 
     void documentStream::ignore(std::streamsize n, int delimeter)
     {
-        char ch = buf.peek();
+        char ch = peek();
         for (int i = 0; i < n && ch != delimeter && !eof(); i++)
         {
-            if (ISNEWLINE(ch))
-            {
-                incrementLineNumber();
-            }
-            buf.ignore();
-            ch = buf.peek();
+            ignore();
+            ch = peek();
         }
     }
 
     void documentStream::ignore(std::streamsize n, bool (*delimeter)(char))
     {
-        char ch = buf.peek();
+        char ch = peek();
         for (int i = 0; i < n && !delimeter(ch) && !eof(); i++)
         {
-            if (ISNEWLINE(ch))
-            {
-                incrementLineNumber();
-            }
-            buf.ignore();
-            ch = buf.peek();
+            ignore();
+            ch = peek();
         }
     }
 
-    void documentStream::ignore(){
-        buf.ignore();
+    void documentStream::ignore()
+    {
+        char ch = buf.get();
+        if (ISNEWLINE(ch))
+        {
+            incrementLineNumber();
+        }
     }
 
     void documentStream::ignore(std::streamsize n, const char *delimeter)
@@ -103,11 +94,7 @@ namespace oxml
         std::size_t len = strlen(delimeter);
         for (int i = 0; i < n && !eof() && idx < len; i++)
         {
-            char ch = buf.get();
-            if (ISNEWLINE(ch))
-            {
-                incrementLineNumber();
-            }
+            char ch = get();
 
             if (delimeter[idx] != ch)
             {
@@ -117,11 +104,11 @@ namespace oxml
             idx++;
         }
     }
-    
+
     void documentStream::ignoreWS()
     {
         this->ignore(std::numeric_limits<std::streamsize>::max(), [](char ch)
-                          { return !(isspace(ch)); });
+                     { return !(isspace(ch)); });
     }
 
     std::size_t documentStream::tellLine()
@@ -131,6 +118,9 @@ namespace oxml
 
     bool documentStream::seekLine(std::size_t line)
     {
+        //if we have reached the end of file in the past, the eof flag will prevent us from correctly using seekg
+        if(eof())buf.clear();
+
         if (lineMapping.size() >= line)
         {
             buf.seekg(lineMapping[line - 1]);
@@ -143,11 +133,7 @@ namespace oxml
 
         while (!eof())
         {
-            char ch = buf.get();
-            if (ISNEWLINE(ch))
-            {
-                incrementLineNumber();
-            }
+            char ch = get();
 
             if (lineNumber == line)
             {
@@ -160,45 +146,33 @@ namespace oxml
 
     char documentStream::get()
     {
-        return buf.get();
+        char ch = buf.get();
+        if (ISNEWLINE(ch))
+        {
+            incrementLineNumber();
+        }
+        return ch;
     }
 
     std::string documentStream::getUntil(char delimeter)
     {
-        char ch = buf.peek();
         std::string out = "";
-        
-        for (int i = 0; ch != delimeter && !eof(); i++)
-        {
-            out.insert(out.end(), ch);
-            
-            if (ISNEWLINE(ch))
-            {
-                incrementLineNumber();
-            }
-
-            buf.ignore();
-            ch = buf.peek();
+        while(peek() != delimeter && !eof()){
+            out.insert(out.end(), get());
         }
-
         return out;
     }
 
     std::string documentStream::getUntil(bool (*delimeter)(char))
     {
         std::string out = "";
-        char ch = buf.peek();
+        char ch = peek();
         while (!eof() && !delimeter(ch))
         {
             out.insert(out.end(), ch);
-    
-            if (ISNEWLINE(ch))
-            {
-                incrementLineNumber();
-            }
+            ignore();
 
-            buf.ignore();
-            ch = buf.peek();
+            ch = peek();
         }
         return out;
     }
@@ -210,13 +184,9 @@ namespace oxml
         std::size_t len = strlen(delimeter);
         for (int i = 0; !eof() && idx < len; i++)
         {
-            char ch = buf.get();
+            char ch = get();
             out.insert(out.end(), ch);
 
-            if (ISNEWLINE(ch))
-            {
-                incrementLineNumber();
-            }
 
             if (delimeter[idx] != ch)
             {

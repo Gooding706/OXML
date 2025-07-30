@@ -13,7 +13,7 @@ namespace oxml
     // function to ignore all whitespace + comments, after this function is called the next character will be "tokenize-able"
     void lexer::ignoreUnread()
     {
-        for (;;)
+        while (!textStream.eof())
         
         {
             textStream.ignoreWS();
@@ -187,7 +187,6 @@ namespace oxml
 
         try
         {
-            std::cout << eof() << textStream.peek();
             token body = tokenizeBody();
             return body;
         }
@@ -205,7 +204,9 @@ namespace oxml
         std::stringstream ss;
         ss << errBody << '\n';
 
-        for (int i = t.getTokenStart(); i <= t.getTokenEnd(); i++)
+        int i = t.getTokenStart();
+        int j = t.getTokenEnd();
+        for (; i <= j; i++)
         {
             textStream.seekLine(i);
             ss << i << " | " << textStream.getUntil('\n') << '\n';
