@@ -34,10 +34,13 @@ namespace oxml
 
     std::string lexer::extractCharData()
     {
-        //strlen(<![CDATA[) == 9
+        // strlen(<![CDATA[) == 9
         textStream.ignore(9, '\0');
+        std::size_t tokenStart = textStream.tellLine();
         std::string out = textStream.getUntil("]]>");
-        /*this is a hacky solution because getUntil with a string delimeter will 
+        if (textStream.eof())
+            throw generateException("unclosed CDATA tag", tokenStart, textStream.tellLine());
+        /*this is a hacky solution because getUntil with a string delimeter will
         read the delimeter into its return value*/
         out.resize(out.length() - 3);
 
@@ -54,14 +57,23 @@ namespace oxml
         {
             content.append(textStream.getUntil('<'));
             if (eof())
-                throw generateException("Body text with no terminal tag found during lexing",
-                                        token(ERR, tokenStart, textStream.tellLine()));
+                throw generateException("Body text with no terminal tag found during lexing", tokenStart, textStream.tellLine());
             else if (textStream.peekn(2) == "<!")
             {
                 if (textStream.peekn(4) == "<!--")
                     textStream.ignore(std::numeric_limits<std::streamsize>::max(), "-->");
                 else if (textStream.peekn(9) == "<![CDATA[")
-                    content.append(extractCharData());
+                {
+                    try
+                    {
+                        std::string charData = extractCharData();
+                        content.append(charData);
+                    }
+                    catch (std::runtime_error e)
+                    {
+                        throw e;
+                    }
+                }
             }
             else
                 break;
@@ -79,22 +91,19 @@ namespace oxml
         std::string attributeName = textStream.getUntil([](char ch)
                                                         { return isspace(ch) || ch == '='; });
         if (attributeName.size() == 0)
-            throw generateException("attribute with name of length 0",
-                                    token(ERR, textStream.tellLine(), textStream.tellLine()));
+            throw generateException("attribute with name of length 0", textStream.tellLine(), textStream.tellLine());
         else
             tokenBuffer.push_back(token(TEXT, attributeName, textStream.tellLine(), textStream.tellLine()));
 
         textStream.ignoreWS();
         if (textStream.get() != '=')
-            throw generateException("Expected token =, following attribute declaration",
-                                    token(ERR, textStream.tellLine(), textStream.tellLine()));
+            throw generateException("Expected token =, following attribute declaration", textStream.tellLine(), textStream.tellLine());
         else
             tokenBuffer.push_back(token(EQUAL, textStream.tellLine(), textStream.tellLine()));
 
         textStream.ignoreWS();
         if (textStream.get() != '"')
-            throw generateException("Expected token \", following =",
-                                    token(ERR, textStream.tellLine(), textStream.tellLine()));
+            throw generateException("Expected token \", following =", textStream.tellLine(), textStream.tellLine());
         else
             tokenBuffer.push_back(token(QUOTE_OPEN, textStream.tellLine(), textStream.tellLine()));
 
@@ -102,8 +111,7 @@ namespace oxml
         std::string attributeValue = textStream.getUntil([](char ch)
                                                          { return ch == '"'; });
         if (textStream.eof())
-            throw generateException("Unterminated string literal",
-                                    token(ERR, tokenStart, textStream.tellLine()));
+            throw generateException("Unterminated string literal", tokenStart, textStream.tellLine());
         else
             tokenBuffer.push_back(token(TEXT, attributeValue, textStream.tellLine(), textStream.tellLine()));
 
@@ -122,8 +130,7 @@ namespace oxml
                                                   { return (isspace(ch) || ch == '>'); });
 
         if (tagName.size() == 0)
-            throw generateException("Tag with name of length 0",
-                                    token(ERR, tokenStart, textStream.tellLine()));
+            throw generateException("Tag with name of length 0", tokenStart, textStream.tellLine());
 
         tokenBuffer.push_back(token(TEXT, tagName, tokenStart, textStream.tellLine()));
 
@@ -133,8 +140,7 @@ namespace oxml
         {
             tokenizeInnerTagAttribute();
             if (textStream.eof())
-                throw generateException("Expected tag to end with >, found eof",
-                                        token(ERR, textStream.tellLine(), textStream.tellLine()));
+                throw generateException("Expected tag to end with >, found eof", textStream.tellLine(), textStream.tellLine());
         }
 
         textStream.ignore();
@@ -155,10 +161,38 @@ namespace oxml
         textStream.ignoreWS();
 
         if (textStream.get() != '>')
-            throw generateException("Expected tag to end with >",
-                                    token(ERR, currentLine, textStream.tellLine()));
+            throw generateException("Expected tag to end with >", currentLine, textStream.tellLine());
         else
             tokenBuffer.push_back(token(GREATERTHAN, tagName, currentLine, currentLine));
+    }
+
+    void lexer::tokenizeIdentifier()
+    {
+        // we guarantee that the next 2 charcters are </
+        textStream.ignore(2, '\0');
+        std::size_t currentLine = textStream.tellLine();
+        tokenBuffer.push_back(token(LESSTHAN, currentLine, currentLine));
+        tokenBuffer.push_back(token(QUESTION, currentLine, currentLine));
+
+        std::string identifierName = textStream.getUntil([](char ch){
+            return (bool)isspace(ch);
+        });
+        if(identifierName.size() == 0)
+            throw generateException("found identifier name of length 0", currentLine, currentLine);
+
+        textStream.ignoreWS();
+        while (textStream.peekn(2) != "?>")
+        {
+            tokenizeInnerTagAttribute();
+            if (textStream.eof())
+                throw generateException("Expected identifier to end with ?>, found eof", textStream.tellLine(), textStream.tellLine());
+            textStream.ignoreWS();
+        }
+        
+        textStream.ignore(2, '\0');
+        currentLine = textStream.tellLine();
+        tokenBuffer.push_back(token(QUESTION, currentLine, currentLine));
+        tokenBuffer.push_back(token(GREATERTHAN, currentLine, currentLine));
     }
 
     token lexer::getNextToken()
@@ -180,8 +214,14 @@ namespace oxml
             {
                 if (textStream.peekn(2) == "</")
                     tokenizeClosingTag();
-                else if(textStream.peekn(9) == "<![CDATA[")
-                    return tokenizeBody();
+                else if (textStream.peekn(9) == "<![CDATA[")
+                {
+                    // CDATA is exclusive to the body portion
+                    token body = tokenizeBody();
+                    return body;
+                }
+                else if (textStream.peekn(2) == "<?")
+                    tokenizeIdentifier();
                 else
                     tokenizeInnerTag();
             }
@@ -196,9 +236,10 @@ namespace oxml
 
         try
         {
-            return tokenizeBody();
+            token body = tokenizeBody();
+            return body;
         }
-        catch (std::exception e)
+        catch (std::runtime_error e)
         {
             throw e;
         }
@@ -207,13 +248,13 @@ namespace oxml
     bool lexer::eof() { return textStream.eof() && tokenBuffer.empty(); }
 
     // FIXME: this modifies the global state of the text stream object, is that ok?
-    std::runtime_error lexer::generateException(const char *errBody, token t)
+    std::runtime_error lexer::generateException(const char *errBody, std::size_t tokenStart, std::size_t tokenEnd)
     {
         std::stringstream ss;
         ss << errBody << '\n';
 
-        int i = t.getTokenStart();
-        int j = t.getTokenEnd();
+        int i = tokenStart;
+        int j = tokenEnd;
         for (; i <= j; i++)
         {
             textStream.seekLine(i);
@@ -221,5 +262,10 @@ namespace oxml
         }
 
         return std::runtime_error(ss.str());
+    }
+
+    std::runtime_error lexer::generateException(const char *errBody, token t)
+    {
+        return generateException(errBody, t.getTokenStart(), t.getTokenEnd());
     }
 }
