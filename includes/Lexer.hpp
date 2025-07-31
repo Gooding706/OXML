@@ -32,6 +32,7 @@ namespace oxml
         token tokenizeBody();
         void tokenizeInnerTagAttribute();
         void tokenizeClosingTag();
+        std::string extractCharData();
 
         void ignoreUnread();
         

@@ -14,7 +14,7 @@ namespace oxml
     void lexer::ignoreUnread()
     {
         while (!textStream.eof())
-        
+
         {
             textStream.ignoreWS();
             /*4 here is a "magic number" denoting strlen("<!--"), that being said the start of
@@ -32,6 +32,18 @@ namespace oxml
         }
     }
 
+    std::string lexer::extractCharData()
+    {
+        //strlen(<![CDATA[) == 9
+        textStream.ignore(9, '\0');
+        std::string out = textStream.getUntil("]]>");
+        /*this is a hacky solution because getUntil with a string delimeter will 
+        read the delimeter into its return value*/
+        out.resize(out.length() - 3);
+
+        return out;
+    }
+
     token lexer::tokenizeBody()
     {
         std::size_t tokenStart = textStream.tellLine();
@@ -40,9 +52,6 @@ namespace oxml
         // are these kinds of loops bad practice?
         while (!textStream.eof())
         {
-            
-            textStream.ignoreWS();
-
             content.append(textStream.getUntil('<'));
             if (eof())
                 throw generateException("Body text with no terminal tag found during lexing",
@@ -51,7 +60,8 @@ namespace oxml
             {
                 if (textStream.peekn(4) == "<!--")
                     textStream.ignore(std::numeric_limits<std::streamsize>::max(), "-->");
-                // else --> try and handle CDATA block
+                else if (textStream.peekn(9) == "<![CDATA[")
+                    content.append(extractCharData());
             }
             else
                 break;
@@ -104,7 +114,6 @@ namespace oxml
     void lexer::tokenizeInnerTag()
     {
         // start with <
-
         textStream.ignore();
         tokenBuffer.push_back(token(LESSTHAN, textStream.tellLine(), textStream.tellLine()));
 
@@ -118,13 +127,12 @@ namespace oxml
 
         tokenBuffer.push_back(token(TEXT, tagName, tokenStart, textStream.tellLine()));
 
-
         textStream.ignoreWS();
 
         while (textStream.peek() != '>')
         {
             tokenizeInnerTagAttribute();
-            if(textStream.eof())
+            if (textStream.eof())
                 throw generateException("Expected tag to end with >, found eof",
                                         token(ERR, textStream.tellLine(), textStream.tellLine()));
         }
@@ -156,7 +164,7 @@ namespace oxml
     token lexer::getNextToken()
     {
         // we can source from our buffer until we run out
-       ignoreUnread();
+        ignoreUnread();
         if (tokenBuffer.size() > 0)
         {
             token out = tokenBuffer.front();
@@ -166,13 +174,14 @@ namespace oxml
         if (eof())
             return token(TERMINAL, textStream.tellLine(), textStream.tellLine());
 
-        
         if (textStream.peek() == '<')
         {
             try
             {
                 if (textStream.peekn(2) == "</")
                     tokenizeClosingTag();
+                else if(textStream.peekn(9) == "<![CDATA[")
+                    return tokenizeBody();
                 else
                     tokenizeInnerTag();
             }
@@ -181,14 +190,13 @@ namespace oxml
                 throw e;
             }
             // we call the function itself because, given success, the token buffer should have elements in it
-            
+
             return getNextToken();
         }
 
         try
         {
-            token body = tokenizeBody();
-            return body;
+            return tokenizeBody();
         }
         catch (std::exception e)
         {
@@ -196,7 +204,7 @@ namespace oxml
         }
     }
 
-    bool lexer::eof() {return textStream.eof() && tokenBuffer.empty(); }
+    bool lexer::eof() { return textStream.eof() && tokenBuffer.empty(); }
 
     // FIXME: this modifies the global state of the text stream object, is that ok?
     std::runtime_error lexer::generateException(const char *errBody, token t)
