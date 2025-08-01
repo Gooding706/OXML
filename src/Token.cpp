@@ -19,7 +19,7 @@ namespace oxml
     {
         return tokenStart;
     }
-    
+
     std::size_t token::getTokenEnd() const
     {
         return tokenEnd;
@@ -44,11 +44,8 @@ namespace oxml
         case (EQUAL):
             strm << "EQUAL";
             break;
-        case (QUOTE_OPEN):
-            strm << "QUOTE_OPEN";
-            break;
-        case (QUOTE_CLOSE):
-            strm << "QUOTE_CLOSE";
+        case (QUOTE):
+            strm << "QUOTE";
             break;
         case (BANG):
             strm << "BANG";
@@ -59,14 +56,17 @@ namespace oxml
         case (TERMINAL):
             strm << "TERMINAL";
             break;
-        case (SQUAREBRACKET_OPEN):
-            strm << "SQUAREBRACKET_OPEN";
-            break;
-        case (SQUAREBRACKET_CLOSE):
-            strm << "SQUAREBRACKET_CLOSE";
-            break;
         case (ERR):
             strm << "ERR";
+            break;
+        case (PERCENT):
+            strm << "PERCENT";
+            break;
+        case (SQUARE_BRACKET_OPEN):
+            strm << "SQUARE_BRACKET_OPEN";
+            break;
+        case (SQUARE_BRACKET_CLOSE):
+            strm << "SQUARE_BRACKET_CLOSE";
             break;
         }
         return strm;

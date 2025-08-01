@@ -116,6 +116,13 @@ namespace oxml
         return lineNumber;
     }
 
+    void documentStream::unget(){
+        buf.unget();
+        if(ISNEWLINE(buf.peek())){
+            lineNumber--;
+        }
+    }
+
     bool documentStream::seekLine(std::size_t line)
     {
         //if we have reached the end of file in the past, the eof flag will prevent us from correctly using seekg

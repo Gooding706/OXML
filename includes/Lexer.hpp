@@ -29,12 +29,10 @@ namespace oxml
         std::deque<token> tokenBuffer{};
 
     private:
-        void tokenizeInnerTag();
         token tokenizeBody();
-        void tokenizeInnerTagAttribute();
-        void tokenizeClosingTag();
         std::string extractCharData();
-        void tokenizeIdentifier();
+        void tokenizeStringLiteral();
+        token tokenizeIdentifier();
 
         void ignoreUnread();
 

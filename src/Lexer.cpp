@@ -74,125 +74,68 @@ namespace oxml
                         throw e;
                     }
                 }
+                else
+                {
+                    break;
+                }
             }
             else
                 break;
         }
-
+        if (content.length() == 0)
+        {
+            return getNextToken();
+        }
         return token(TEXT, content, tokenStart, textStream.tellLine());
     }
 
-    // TODO: is there a way to make this error handling less ugly?
-    void lexer::tokenizeInnerTagAttribute()
+    void lexer::tokenizeStringLiteral()
     {
-        textStream.ignoreWS();
-
-        // expect TEXT
-        std::string attributeName = textStream.getUntil([](char ch)
-                                                        { return isspace(ch) || ch == '='; });
-        if (attributeName.size() == 0)
-            throw generateException("attribute with name of length 0", textStream.tellLine(), textStream.tellLine());
-        else
-            tokenBuffer.push_back(token(TEXT, attributeName, textStream.tellLine(), textStream.tellLine()));
-
-        textStream.ignoreWS();
-        if (textStream.get() != '=')
-            throw generateException("Expected token =, following attribute declaration", textStream.tellLine(), textStream.tellLine());
-        else
-            tokenBuffer.push_back(token(EQUAL, textStream.tellLine(), textStream.tellLine()));
-
-        textStream.ignoreWS();
-        if (textStream.get() != '"')
-            throw generateException("Expected token \", following =", textStream.tellLine(), textStream.tellLine());
-        else
-            tokenBuffer.push_back(token(QUOTE_OPEN, textStream.tellLine(), textStream.tellLine()));
-
         std::size_t tokenStart = textStream.tellLine();
-        std::string attributeValue = textStream.getUntil([](char ch)
-                                                         { return ch == '"'; });
+        std::string strData = textStream.getUntil('"');
         if (textStream.eof())
-            throw generateException("Unterminated string literal", tokenStart, textStream.tellLine());
-        else
-            tokenBuffer.push_back(token(TEXT, attributeValue, textStream.tellLine(), textStream.tellLine()));
-
-        textStream.get();
-        tokenBuffer.push_back(token(QUOTE_CLOSE, textStream.tellLine(), textStream.tellLine()));
-    }
-
-    void lexer::tokenizeInnerTag()
-    {
-        // start with <
-        textStream.ignore();
-        tokenBuffer.push_back(token(LESSTHAN, textStream.tellLine(), textStream.tellLine()));
-
-        std::size_t tokenStart = textStream.tellLine();
-        std::string tagName = textStream.getUntil([](char ch)
-                                                  { return (isspace(ch) || ch == '>'); });
-
-        if (tagName.size() == 0)
-            throw generateException("Tag with name of length 0", tokenStart, textStream.tellLine());
-
-        tokenBuffer.push_back(token(TEXT, tagName, tokenStart, textStream.tellLine()));
-
-        textStream.ignoreWS();
-
-        while (textStream.peek() != '>')
-        {
-            tokenizeInnerTagAttribute();
-            if (textStream.eof())
-                throw generateException("Expected tag to end with >, found eof", textStream.tellLine(), textStream.tellLine());
-        }
+            throw generateException("unclosed string literal, expected \" found eof", tokenStart, textStream.tellLine());
 
         textStream.ignore();
-        tokenBuffer.push_back(token(GREATERTHAN, textStream.tellLine(), textStream.tellLine()));
+        tokenBuffer.push_back(token(TEXT, strData, tokenStart, textStream.tellLine()));
+        tokenBuffer.push_back(token(QUOTE, tokenStart, textStream.tellLine()));
     }
 
-    void lexer::tokenizeClosingTag()
+    bool identifierIllegal(char ch)
     {
-        // we guarantee that the next 2 charcters are </
-        textStream.ignore(2, '\0');
-        std::size_t currentLine = textStream.tellLine();
-        tokenBuffer.push_back(token(LESSTHAN, currentLine, currentLine));
-        tokenBuffer.push_back(token(SLASH, currentLine, currentLine));
-
-        std::string tagName = textStream.getUntil([](char ch)
-                                                  { return (isspace(ch) || ch == '>'); });
-        tokenBuffer.push_back(token(TEXT, tagName, currentLine, currentLine));
-        textStream.ignoreWS();
-
-        if (textStream.get() != '>')
-            throw generateException("Expected tag to end with >", currentLine, textStream.tellLine());
-        else
-            tokenBuffer.push_back(token(GREATERTHAN, tagName, currentLine, currentLine));
+        return (isspace(ch) ||
+                ch == '<' ||
+                ch == '>' ||
+                ch == '=' ||
+                ch == '!' ||
+                ch == '"' ||
+                ch == '#' ||
+                ch == '$' ||
+                ch == '%' ||
+                ch == '&' ||
+                ch == '\'' ||
+                ch == '(' ||
+                ch == ')' ||
+                ch == '*' ||
+                ch == '+' ||
+                ch == ',' ||
+                ch == '/' ||
+                ch == ';' ||
+                ch == '&' ||
+                ch == '[' ||
+                ch == ']' ||
+                ch == '^' ||
+                ch == '`' ||
+                ch == '{' ||
+                ch == '|' ||
+                ch == '}' ||
+                ch == '~');
     }
 
-    void lexer::tokenizeIdentifier()
+    token lexer::tokenizeIdentifier()
     {
-        // we guarantee that the next 2 charcters are </
-        textStream.ignore(2, '\0');
-        std::size_t currentLine = textStream.tellLine();
-        tokenBuffer.push_back(token(LESSTHAN, currentLine, currentLine));
-        tokenBuffer.push_back(token(QUESTION, currentLine, currentLine));
-
-        std::string identifierName = textStream.getUntil([](char ch){
-            return (bool)isspace(ch);
-        });
-        if(identifierName.size() == 0)
-            throw generateException("found identifier name of length 0", currentLine, currentLine);
-
-        textStream.ignoreWS();
-        while (textStream.peekn(2) != "?>")
-        {
-            tokenizeInnerTagAttribute();
-            if (textStream.eof())
-                throw generateException("Expected identifier to end with ?>, found eof", textStream.tellLine(), textStream.tellLine());
-            textStream.ignoreWS();
-        }
-        
-        textStream.ignore(2, '\0');
-        currentLine = textStream.tellLine();
-        tokenBuffer.push_back(token(QUESTION, currentLine, currentLine));
-        tokenBuffer.push_back(token(GREATERTHAN, currentLine, currentLine));
+        std::string text = textStream.getUntil(identifierIllegal);
+        return token(TEXT, text, textStream.tellLine(), textStream.tellLine());
     }
 
     token lexer::getNextToken()
@@ -208,40 +151,47 @@ namespace oxml
         if (eof())
             return token(TERMINAL, textStream.tellLine(), textStream.tellLine());
 
-        if (textStream.peek() == '<')
+        std::size_t currentLine = textStream.tellLine();
+        switch (textStream.get())
         {
+        case '!':
+            return token(BANG, currentLine, currentLine);
+        case '?':
+            return token(QUESTION, currentLine, currentLine);
+        case '<':
+            if (textStream.peekn(8) == "[CDATA[")
+            {
+                textStream.unget();
+                return tokenizeBody();
+            }
+            return token(LESSTHAN, currentLine, currentLine);
+        case '/':
+            return token(SLASH, currentLine, currentLine);
+        case '>':
             try
             {
-                if (textStream.peekn(2) == "</")
-                    tokenizeClosingTag();
-                else if (textStream.peekn(9) == "<![CDATA[")
-                {
-                    // CDATA is exclusive to the body portion
-                    token body = tokenizeBody();
-                    return body;
-                }
-                else if (textStream.peekn(2) == "<?")
-                    tokenizeIdentifier();
-                else
-                    tokenizeInnerTag();
+                ignoreUnread();
+                tokenBuffer.push_back(tokenizeBody());
             }
             catch (std::runtime_error e)
             {
                 throw e;
             }
-            // we call the function itself because, given success, the token buffer should have elements in it
-
-            return getNextToken();
-        }
-
-        try
-        {
-            token body = tokenizeBody();
-            return body;
-        }
-        catch (std::runtime_error e)
-        {
-            throw e;
+            return token(GREATERTHAN, currentLine, currentLine);
+        case '=':
+            return token(EQUAL, currentLine, currentLine);
+        case '"':
+            tokenizeStringLiteral();
+            return token(QUOTE, currentLine, currentLine);
+        case '%':
+            return token(PERCENT, currentLine, currentLine);
+        case '[':
+            return token(SQUARE_BRACKET_OPEN, currentLine, currentLine);
+        case ']':
+            return token(SQUARE_BRACKET_CLOSE, currentLine, currentLine);
+        default:
+            textStream.unget();
+            return tokenizeIdentifier();
         }
     }
 

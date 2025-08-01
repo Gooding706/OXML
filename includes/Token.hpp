@@ -11,14 +11,14 @@ namespace oxml
         TEXT,
         SLASH,
         EQUAL,
-        QUOTE_OPEN,
-        QUOTE_CLOSE,
+        QUOTE,
         BANG,
         QUESTION,
         TERMINAL,
-        SQUAREBRACKET_OPEN,
-        SQUAREBRACKET_CLOSE,
-        ERR
+        ERR,
+        PERCENT,
+        SQUARE_BRACKET_OPEN,
+        SQUARE_BRACKET_CLOSE
     };
 
     class token

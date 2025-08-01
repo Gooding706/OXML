@@ -30,9 +30,12 @@ namespace oxml{
             bool seekLine(std::size_t line);
 
             char get();
+            void unget();
+            
             std::string getUntil(char delimeter);
             std::string getUntil(bool(*delimeter)(char));
             std::string getUntil(const char* delimeter);
+            
 
         private:
             std::stringstream buf;
